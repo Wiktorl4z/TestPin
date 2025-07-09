@@ -1,4 +1,5 @@
 import android.view.KeyEvent
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,6 +43,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
@@ -62,6 +64,8 @@ private val ITEM_HEIGHT = 44.dp
 
 @Composable
 fun PinScreenRef() {
+    val context = LocalContext.current
+
     val pinValues = remember {
         mutableStateListOf<Char?>().apply {
             repeat(DEFAULT_PIN_LENGTH) { add(null) }
@@ -96,6 +100,9 @@ fun PinScreenRef() {
             pinValues = pinValues,
             onValidation = { pinCode ->
                 errorMessage = validatePin(pinCode, pinValues)
+                if (errorMessage == null) {
+                    Toast.makeText(context, "Pin is correct!", Toast.LENGTH_SHORT).show()
+                }
             }
         )
     }
@@ -116,7 +123,7 @@ private fun ErrorMessage(errorMessage: String?) {
 @Composable
 private fun SubmitButton(
     pinValues: List<Char?>,
-    onValidation: (String) -> Unit
+    onValidation: (String) -> Unit,
 ) {
     Button(
         onClick = {
@@ -209,7 +216,7 @@ private fun PinInputField(
     pinLength: Int,
     isError: Boolean,
     focusManager: androidx.compose.ui.focus.FocusManager,
-    onKeyboardVisibilityChange: (Boolean) -> Unit
+    onKeyboardVisibilityChange: (Boolean) -> Unit,
 ) {
     val char = pinValues.getOrNull(index)
     val interactionSource = remember { MutableInteractionSource() }
@@ -335,7 +342,7 @@ private fun handleValueChange(
     onPinChange: (List<Char?>) -> Unit,
     onFocusChange: (Int) -> Unit,
     focusManager: androidx.compose.ui.focus.FocusManager,
-    onKeyboardVisibilityChange: (Boolean) -> Unit
+    onKeyboardVisibilityChange: (Boolean) -> Unit,
 ) {
     when {
         newValue.length == pinLength -> {
@@ -384,7 +391,7 @@ private fun handleKeyEvent(
     char: Char?,
     pinValues: List<Char?>,
     onPinChange: (List<Char?>) -> Unit,
-    onFocusChange: (Int) -> Unit
+    onFocusChange: (Int) -> Unit,
 ): Boolean {
     return if (event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DEL) {
         if (char == null && index > 0) {
