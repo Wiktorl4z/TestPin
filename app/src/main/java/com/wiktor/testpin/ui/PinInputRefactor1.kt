@@ -35,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -52,6 +51,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 
 // Constants
 private const val DEFAULT_PIN_LENGTH = 6
@@ -237,18 +237,6 @@ private fun PinInputField(
             .clip(RoundedCornerShape(2.dp))
             .border(1.dp, BORDER_COLOR, RoundedCornerShape(2.dp))
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(2.dp))
-            .drawBehind {
-                if (isFocused || isError) {
-                    val color = if (isError) ERROR_COLOR else FOCUSED_COLOR
-                    val linePosition = size.height - 1.5.dp.toPx()
-                    drawLine(
-                        color = color,
-                        start = Offset(0f, linePosition),
-                        end = Offset(size.width, linePosition),
-                        strokeWidth = 3.dp.toPx()
-                    )
-                }
-            }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -265,6 +253,7 @@ private fun PinInputField(
                 }
             }
     ) {
+        // Content box
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -329,6 +318,21 @@ private fun PinInputField(
                             onFocusChange = onFocusChange
                         )
                     }
+            )
+        }
+
+        // Draw line OVER the content (front layer) with higher z-index
+        if (isFocused || isError) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        color = if (isError) ERROR_COLOR else FOCUSED_COLOR,
+                        shape = RoundedCornerShape(bottomStart = 2.dp, bottomEnd = 2.dp)
+                    )
+                    .zIndex(1f) // Ensure it appears above the text field
             )
         }
     }
@@ -405,4 +409,3 @@ private fun handleKeyEvent(
         } else false
     } else false
 }
-
