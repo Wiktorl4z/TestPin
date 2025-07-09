@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.sp
 
 // Constants
 private const val DEFAULT_PIN_LENGTH = 6
-private const val CORRECT_PIN = "123456" // Replace with actual validation
+private const val CORRECT_PIN = "123456"
 private val BORDER_COLOR = Color(0xFF828282)
 private val FOCUSED_COLOR = Color(0xFF007548)
 private val ERROR_COLOR = Color(0xFFD40000)
@@ -75,7 +75,7 @@ fun PinScreenRef() {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        PinInput(
+        PinField(
             pinValues = pinValues,
             onPinChange = { newValues ->
                 pinValues.clear()
@@ -137,7 +137,7 @@ private fun validatePin(pinCode: String, pinValues: List<Char?>): String? {
 }
 
 @Composable
-fun PinInput(
+fun PinField(
     pinValues: List<Char?>,
     onPinChange: (List<Char?>) -> Unit,
     pinLength: Int,
@@ -149,12 +149,14 @@ fun PinInput(
     var currentFocusIndex by remember { mutableIntStateOf(0) }
     var isKeyboardVisible by remember { mutableStateOf(false) }
 
+    // Ensure pinValues has the correct length
     val firstEmptyIndex by remember(pinValues) {
         derivedStateOf {
             pinValues.indexOfFirst { it == null }.takeIf { it != -1 } ?: pinLength
         }
     }
 
+    // Find the last filled index
     val lastFilledIndex by remember(pinValues) {
         derivedStateOf {
             pinValues.indexOfLast { it != null }.takeIf { it != -1 } ?: 0
