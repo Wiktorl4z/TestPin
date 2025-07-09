@@ -1,7 +1,8 @@
 package com.wiktor.testpin
 
 import PinInput
-import PinInputTestingRefactor
+import PinInput2
+import PinScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.wiktor.testpin.ui.PinScreenRefactor
 import com.wiktor.testpin.ui.theme.TestPinTheme
 
 
@@ -30,11 +32,14 @@ class MainActivity : ComponentActivity() {
                     //     PinInput(6,{}, isError = false)
 
                     //      DebugNumericKeyboardSafe()
-                 //       PinInput2(4,{}, isError = false) // poprawnie dzialajacy
-                    PinInputTestingRefactor(4,{}, isError = false) // poprawnie dzialajacy
+                  //      PinInput2(4,{}, isError = false) // poprawnie dzialajacy
+                  //  PinInputTestingRefactor(4,{}, isError = false)
                         // PinInputDone(4,{}, isError = false)
                    // PinInputChatGPT(4,{}, isError = false)
                 //    PinInputMiddle(4,{}, isError = false)
+
+                  //  PinScreen()
+                    PinScreenRefactor()
 
 
                  //   PinInputExample()

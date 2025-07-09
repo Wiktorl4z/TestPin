@@ -79,7 +79,7 @@ fun PinInput2(
     }
 
     LaunchedEffect(currentFocusIndex) {
-        focusRequesters[currentFocusIndex].requestFocus()
+        focusRequesters.getOrNull(currentFocusIndex)?.requestFocus()
         keyboardController?.show()
     }
 
@@ -236,18 +236,5 @@ fun PinInput2(
                 }
             }
         }
-    }
-}
-
-
-object PinTransformation : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        return TransformedText(
-            text,
-            offsetMapping = object : OffsetMapping {
-                override fun originalToTransformed(offset: Int) = text.length
-                override fun transformedToOriginal(offset: Int) = text.length
-            }
-        )
     }
 }
