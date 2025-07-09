@@ -1,8 +1,7 @@
-package com.wiktor.testpin.ui
-
 import android.view.KeyEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -44,18 +44,12 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.fillMaxSize
 
 // Constants
 private const val DEFAULT_PIN_LENGTH = 6
@@ -67,14 +61,13 @@ private val ITEM_WIDTH = 36.dp
 private val ITEM_HEIGHT = 44.dp
 
 @Composable
-fun PinScreenRefactor() {
+fun PinScreenRef() {
     val pinValues = remember {
         mutableStateListOf<Char?>().apply {
             repeat(DEFAULT_PIN_LENGTH) { add(null) }
         }
     }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -101,10 +94,7 @@ fun PinScreenRefactor() {
 
         SubmitButton(
             pinValues = pinValues,
-            isLoading = isLoading,
-            onSubmit = { isLoading = true },
             onValidation = { pinCode ->
-                isLoading = false
                 errorMessage = validatePin(pinCode, pinValues)
             }
         )
@@ -126,19 +116,15 @@ private fun ErrorMessage(errorMessage: String?) {
 @Composable
 private fun SubmitButton(
     pinValues: List<Char?>,
-    isLoading: Boolean,
-    onSubmit: () -> Unit,
     onValidation: (String) -> Unit
 ) {
     Button(
         onClick = {
-            onSubmit()
             val pinCode = pinValues.joinToString("")
             onValidation(pinCode)
-        },
-        enabled = !isLoading
+        }
     ) {
-        Text(if (isLoading) "Verifying..." else "Submit")
+        Text("Submit")
     }
 }
 
@@ -161,6 +147,7 @@ fun PinInput(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequesters = remember { List(pinLength) { FocusRequester() } }
     var currentFocusIndex by remember { mutableIntStateOf(0) }
+    var isKeyboardVisible by remember { mutableStateOf(false) }
 
     val firstEmptyIndex by remember(pinValues) {
         derivedStateOf {
@@ -176,7 +163,9 @@ fun PinInput(
 
     LaunchedEffect(currentFocusIndex) {
         focusRequesters.getOrNull(currentFocusIndex)?.requestFocus()
-        keyboardController?.show()
+        if (isKeyboardVisible) {
+            keyboardController?.show()
+        }
     }
 
     Row(
@@ -199,7 +188,7 @@ fun PinInput(
                 pinLength = pinLength,
                 isError = isError,
                 focusManager = focusManager,
-                keyboardController = keyboardController
+                onKeyboardVisibilityChange = { isKeyboardVisible = it }
             )
         }
     }
@@ -218,7 +207,7 @@ private fun PinInputField(
     pinLength: Int,
     isError: Boolean,
     focusManager: androidx.compose.ui.focus.FocusManager,
-    keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController?
+    onKeyboardVisibilityChange: (Boolean) -> Unit
 ) {
     val char = pinValues.getOrNull(index)
     val interactionSource = remember { MutableInteractionSource() }
@@ -227,6 +216,7 @@ private fun PinInputField(
     val isFocusable = if (firstEmptyIndex < pinLength) {
         index == firstEmptyIndex
     } else {
+        // remove focus from all fields if all are filled
         index == pinLength - 1
     }
 
@@ -260,7 +250,7 @@ private fun PinInputField(
                     pinLength - 1
                 }
                 focusRequesters[targetIndex].requestFocus()
-                keyboardController?.show()
+                onKeyboardVisibilityChange(true)
                 if (currentFocusIndex != targetIndex) {
                     onFocusChange(targetIndex)
                 }
@@ -281,7 +271,7 @@ private fun PinInputField(
                         onPinChange = onPinChange,
                         onFocusChange = onFocusChange,
                         focusManager = focusManager,
-                        keyboardController = keyboardController
+                        onKeyboardVisibilityChange = onKeyboardVisibilityChange,
                     )
                 },
                 keyboardOptions = KeyboardOptions(
@@ -292,11 +282,12 @@ private fun PinInputField(
                     onNext = {
                         if (index < pinLength - 1) {
                             onFocusChange(index + 1)
+                            onKeyboardVisibilityChange(true)
                         }
                     },
                     onDone = {
                         focusManager.clearFocus(true)
-                        keyboardController?.hide()
+                        onKeyboardVisibilityChange(false)
                     }
                 ),
                 textStyle = TextStyle(
@@ -342,7 +333,7 @@ private fun handleValueChange(
     onPinChange: (List<Char?>) -> Unit,
     onFocusChange: (Int) -> Unit,
     focusManager: androidx.compose.ui.focus.FocusManager,
-    keyboardController: androidx.compose.ui.platform.SoftwareKeyboardController?
+    onKeyboardVisibilityChange: (Boolean) -> Unit
 ) {
     when {
         newValue.length == pinLength -> {
@@ -350,7 +341,7 @@ private fun handleValueChange(
             val newPin = newValue.map { it }
             onPinChange(newPin)
             focusManager.clearFocus(true)
-            keyboardController?.hide()
+            onKeyboardVisibilityChange(false)
         }
 
         newValue.isNotEmpty() -> {
@@ -366,7 +357,7 @@ private fun handleValueChange(
             } else {
                 // Last field filled - hide keyboard
                 focusManager.clearFocus(true)
-                keyboardController?.hide()
+                onKeyboardVisibilityChange(false)
             }
         }
 
@@ -406,14 +397,3 @@ private fun handleKeyEvent(
     } else false
 }
 
-object PinTransformation : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        return TransformedText(
-            text,
-            offsetMapping = object : OffsetMapping {
-                override fun originalToTransformed(offset: Int) = text.length
-                override fun transformedToOriginal(offset: Int) = text.length
-            }
-        )
-    }
-}

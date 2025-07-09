@@ -1,8 +1,6 @@
 package com.wiktor.testpin
 
-import PinInput
-import PinInput2
-import PinScreen
+import PinScreenRef
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,11 +8,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.wiktor.testpin.ui.PinScreenRefactor
 import com.wiktor.testpin.ui.theme.TestPinTheme
 
 
@@ -39,7 +34,7 @@ class MainActivity : ComponentActivity() {
                 //    PinInputMiddle(4,{}, isError = false)
 
                   //  PinScreen()
-                    PinScreenRefactor()
+                    PinScreenRef()
 
 
                  //   PinInputExample()
@@ -51,6 +46,7 @@ class MainActivity : ComponentActivity() {
 }
 
 
+/*
 @Preview
 @Composable
 fun PinInputPreview() {
@@ -59,4 +55,4 @@ fun PinInputPreview() {
         onPinComplete = { pin -> println("PIN entered: $pin") },
         isError = false
     )
-}
+}*/

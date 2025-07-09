@@ -1,3 +1,4 @@
+/*
 import android.view.KeyEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -347,6 +348,7 @@ data class PinInputStyle(
     }
 }
 
+*/
 /*@Composable
 fun PinInputExample() {
     var pin by remember { mutableStateOf("") }
