@@ -235,7 +235,6 @@ private fun PinInputField(
             .width(ITEM_WIDTH)
             .height(ITEM_HEIGHT)
             .clip(RoundedCornerShape(2.dp))
-            .border(1.dp, BORDER_COLOR, RoundedCornerShape(2.dp))
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(2.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -255,7 +254,9 @@ private fun PinInputField(
     ) {
         // Content box
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .border(1.dp, BORDER_COLOR, RoundedCornerShape(2.dp)),
             contentAlignment = Alignment.Center
         ) {
             BasicTextField(
