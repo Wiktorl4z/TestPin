@@ -1,5 +1,4 @@
 import android.view.KeyEvent
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,14 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,7 +26,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,142 +37,140 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 
-// Constants
-private const val DEFAULT_PIN_LENGTH = 6
-private const val CORRECT_PIN = "123456"
-private val BORDER_COLOR = Color(0xFF828282)
-private val FOCUSED_COLOR = Color(0xFF007548)
-private val ERROR_COLOR = Color(0xFFD40000)
-private val ITEM_WIDTH = 36.dp
-private val ITEM_HEIGHT = 44.dp
+// Styling configuration class
+data class PinFieldStyle(
+    val itemWidth: Dp,
+    val itemHeight: Dp,
+    val spacing: Dp,
+    val cornerRadius: Dp,
+    val borderColor: Color,
+    val focusedColor: Color,
+    val errorColor: Color,
+    val textStyle: TextStyle,
+    val errorTextStyle: TextStyle,
+    val backgroundColor: Color
+)
+
+// Composable function to create default style
+@Composable
+fun defaultPinFieldStyle(): PinFieldStyle {
+    return PinFieldStyle(
+        itemWidth = 36.dp,
+        itemHeight = 44.dp,
+        spacing = 16.dp,
+        cornerRadius = 2.dp,
+        borderColor = Color(0xFF828282),
+        focusedColor = Color(0xFF007548),
+        errorColor = Color(0xFFD40000),
+        textStyle = TextStyle(
+            fontSize = 24.sp,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface
+        ),
+        errorTextStyle = MaterialTheme.typography.bodySmall,
+        backgroundColor = MaterialTheme.colorScheme.surface
+    )
+}
 
 @Composable
-fun PinScreenRef() {
-    val context = LocalContext.current
-    val keyboardController = LocalSoftwareKeyboardController.current
-
+fun PinFieldWithErrorMessage(
+    pinLength: Int = 6,
+    errorMessage: String?,
+    onPinChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    style: PinFieldStyle = defaultPinFieldStyle()
+) {
+    // Internal state for PIN values
     val pinValues = remember {
         mutableStateListOf<Char?>().apply {
-            repeat(DEFAULT_PIN_LENGTH) { add(null) }
-        }
-    }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    val isComplete = remember { derivedStateOf { pinValues.all { it != null } } }
-
-    LaunchedEffect(isComplete.value) {
-        if (isComplete.value) {
-            keyboardController?.hide()
+            repeat(pinLength) { add(null) }
         }
     }
 
-    // Track when an error occurs to refocus and show keyboard
-    val hasError = errorMessage != null
-    LaunchedEffect(hasError) {
-        if (hasError) {
-            keyboardController?.show()
-        }
+    // Calculate total width for PIN fields
+    val totalWidth = remember(pinLength, style) {
+        (style.itemWidth * pinLength) + (style.spacing * (pinLength - 1))
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        PinField(
-            pinValues = pinValues,
-            onPinChange = { newValues ->
-                pinValues.clear()
-                pinValues.addAll(newValues)
-                errorMessage = null
-            },
-            pinLength = DEFAULT_PIN_LENGTH,
-            isError = hasError,
-            shouldRefocus = hasError // Pass error state to trigger refocus
-        )
+        // Container for PIN fields
+        Box(
+            modifier = Modifier
+                .width(totalWidth)
+        ) {
+            PinField(
+                pinValues = pinValues,
+                onPinChange = { newValues ->
+                    pinValues.clear()
+                    pinValues.addAll(newValues)
+                    onPinChange(pinValues.joinToString("") { it?.toString() ?: "" })
+                },
+                pinLength = pinLength,
+                isError = errorMessage != null,
+                shouldRefocus = errorMessage != null,
+                style = style
+            )
+        }
 
         Spacer(Modifier.height(16.dp))
-        ErrorMessage(errorMessage)
-        Spacer(Modifier.height(24.dp))
 
-        SubmitButton(
-            pinValues = pinValues,
-            onValidation = { pinCode ->
-                errorMessage = validatePin(pinCode, pinValues)
-                if (errorMessage == null) {
-                    Toast.makeText(context, "Pin is correct!", Toast.LENGTH_SHORT).show()
-                }
+        // Error message container
+        Box(
+            modifier = Modifier
+                .width(totalWidth)
+                .padding(top = 8.dp)
+        ) {
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage,
+                    color = style.errorColor,
+                    style = style.errorTextStyle,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.CenterStart)
+                )
             }
-        )
-    }
-}
-
-@Composable
-private fun ErrorMessage(errorMessage: String?) {
-    errorMessage?.let {
-        Text(
-            text = it,
-            color = ERROR_COLOR,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-    }
-}
-
-@Composable
-private fun SubmitButton(
-    pinValues: List<Char?>,
-    onValidation: (String) -> Unit,
-) {
-    Button(
-        onClick = {
-            onValidation(pinValues.joinToString(""))
         }
-    ) {
-        Text("Submit")
-    }
-}
-
-private fun validatePin(pinCode: String, pinValues: List<Char?>): String? {
-    return when {
-        pinValues.any { it == null } -> "All fields must be filled"
-        pinCode != CORRECT_PIN -> "Pin is incorrect"
-        else -> null
     }
 }
 
 @Composable
-fun PinField(
+private fun PinField(
     pinValues: List<Char?>,
     onPinChange: (List<Char?>) -> Unit,
     pinLength: Int,
     isError: Boolean = false,
-    shouldRefocus: Boolean = false // New parameter to trigger refocus
+    shouldRefocus: Boolean = false,
+    style: PinFieldStyle
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequesters = remember { List(pinLength) { FocusRequester() } }
     var currentFocusIndex by remember { mutableIntStateOf(0) }
 
-    // Ensure pinValues has the correct length
     val firstEmptyIndex by remember(pinValues) {
         derivedStateOf {
             pinValues.indexOfFirst { it == null }.takeIf { it != -1 } ?: pinLength
         }
     }
 
-    // Find the last filled index
     val lastFilledIndex by remember(pinValues) {
         derivedStateOf {
             pinValues.indexOfLast { it != null }.takeIf { it != -1 } ?: 0
@@ -199,11 +192,9 @@ fun PinField(
     }
 
     Row(
-        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
+        modifier = Modifier.fillMaxWidth()
     ) {
         repeat(pinLength) { index ->
             PinInputField(
@@ -217,8 +208,13 @@ fun PinField(
                 lastFilledIndex = lastFilledIndex,
                 pinLength = pinLength,
                 isError = isError,
-                focusManager = focusManager
+                focusManager = focusManager,
+                style = style
             )
+
+            if (index < pinLength - 1) {
+                Spacer(Modifier.width(style.spacing))
+            }
         }
     }
 }
@@ -236,6 +232,7 @@ private fun PinInputField(
     pinLength: Int,
     isError: Boolean,
     focusManager: androidx.compose.ui.focus.FocusManager,
+    style: PinFieldStyle
 ) {
     val char = pinValues.getOrNull(index)
     val interactionSource = remember { MutableInteractionSource() }
@@ -250,10 +247,10 @@ private fun PinInputField(
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .width(ITEM_WIDTH)
-            .height(ITEM_HEIGHT)
-            .clip(RoundedCornerShape(2.dp))
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(2.dp))
+            .width(style.itemWidth)
+            .height(style.itemHeight)
+            .clip(RoundedCornerShape(style.cornerRadius))
+            .background(style.backgroundColor, RoundedCornerShape(style.cornerRadius))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -272,7 +269,7 @@ private fun PinInputField(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .border(1.dp, BORDER_COLOR, RoundedCornerShape(2.dp)),
+                .border(1.dp, style.borderColor, RoundedCornerShape(style.cornerRadius)),
             contentAlignment = Alignment.Center
         ) {
             BasicTextField(
@@ -302,20 +299,15 @@ private fun PinInputField(
                         focusManager.clearFocus(true)
                     }
                 ),
-                textStyle = TextStyle(
-                    fontSize = 24.sp,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface
-                ),
+                textStyle = style.textStyle,
                 singleLine = true,
                 maxLines = 1,
                 cursorBrush = SolidColor(Color.Transparent),
-                visualTransformation = PinTransformation,
+                visualTransformation = PinTransformationDone,
                 interactionSource = interactionSource,
                 enabled = isFocusable,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .wrapContentHeight()
                     .focusRequester(focusRequesters[index])
                     .onFocusChanged { focusState ->
                         if (focusState.isFocused) {
@@ -342,9 +334,13 @@ private fun PinInputField(
                     .height(3.dp)
                     .align(Alignment.BottomCenter)
                     .background(
-                        color = if (isError) ERROR_COLOR else FOCUSED_COLOR,
-                        shape = RoundedCornerShape(bottomStart = 2.dp, bottomEnd = 2.dp)
-                    ))
+                        color = if (isError) style.errorColor else style.focusedColor,
+                        shape = RoundedCornerShape(
+                            bottomStart = style.cornerRadius,
+                            bottomEnd = style.cornerRadius
+                        )
+                    )
+            )
         }
     }
 }
@@ -356,7 +352,7 @@ private fun handleValueChange(
     pinLength: Int,
     onPinChange: (List<Char?>) -> Unit,
     onFocusChange: (Int) -> Unit,
-    focusManager: androidx.compose.ui.focus.FocusManager,
+    focusManager: androidx.compose.ui.focus.FocusManager
 ) {
     when {
         newValue.length == pinLength -> {
@@ -416,4 +412,16 @@ private fun handleKeyEvent(
             true
         } else false
     } else false
+}
+
+object PinTransformationDone : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        return TransformedText(
+            text,
+            offsetMapping = object : OffsetMapping {
+                override fun originalToTransformed(offset: Int) = text.length
+                override fun transformedToOriginal(offset: Int) = text.length
+            }
+        )
+    }
 }
