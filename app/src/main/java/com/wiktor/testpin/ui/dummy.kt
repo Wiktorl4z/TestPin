@@ -34,27 +34,28 @@ private fun handlePaste(
     onFocusChange: (Int) -> Unit,
     pinLength: Int
 ) {
-    // Create mutable copy of current values
     val newPin = pinValues.toMutableList()
-    var digitIndex = 0
+    var digitsUsed = 0
     var fieldIndex = 0
 
-    // Only fill empty fields with pasted digits
-    while (fieldIndex < pinLength && digitIndex < digits.length) {
+    // Find first empty field
+    val startIndex = newPin.indexOfFirst { it == null }
+
+    if (startIndex == -1) return // All fields already filled
+
+    // Fill sequentially from first empty field
+    while (fieldIndex < pinLength && digitsUsed < digits.length) {
         if (newPin[fieldIndex] == null) {
-            newPin[fieldIndex] = digits[digitIndex]
-            digitIndex++
+            newPin[fieldIndex] = digits[digitsUsed]
+            digitsUsed++
         }
         fieldIndex++
     }
 
     onPinChange(newPin)
-
-    // Move focus to next empty field or last field
-    val nextEmptyIndex = newPin.indexOfFirst { it == null }
-    val targetIndex = if (nextEmptyIndex != -1) nextEmptyIndex else pinLength - 1
-    onFocusChange(targetIndex)
+    onFocusChange(newPin.indexOfFirst { it == null } ?: pinLength - 1)
 }
+
 
 private fun handleSingleDigit(
     digit: Char,
