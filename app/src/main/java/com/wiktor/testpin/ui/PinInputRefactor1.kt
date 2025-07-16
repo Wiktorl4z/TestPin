@@ -414,6 +414,9 @@ private fun handleKeyEvent(
     } else false
 }
 
+// VisualTransformation to handle PIN input completion
+// This transformation is used to indicate that the PIN input is complete
+// handle selector at the end
 object PinTransformationDone : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         return TransformedText(
