@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,6 +25,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,7 +41,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
@@ -164,33 +163,48 @@ private fun PinField(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequesters = remember { List(pinLength) { FocusRequester() } }
     var currentFocusIndex by remember { mutableIntStateOf(0) }
+    var keyboardVisible by remember { mutableStateOf(true) }
 
-    val firstEmptyIndex by remember(pinValues) {
+    // Calculate target focus index
+    val targetIndex by remember(pinValues) {
         derivedStateOf {
-            pinValues.indexOfFirst { it == null }.takeIf { it != -1 } ?: pinLength
-        }
-    }
-
-    val lastFilledIndex by remember(pinValues) {
-        derivedStateOf {
-            pinValues.indexOfLast { it != null }.takeIf { it != -1 } ?: 0
+            pinValues.indexOfFirst { it == null }.let {
+                if (it != -1) it else pinLength - 1
+            }
         }
     }
 
     // Handle refocus when error occurs
     LaunchedEffect(shouldRefocus) {
         if (shouldRefocus) {
-            println("XXX Refocusing PIN input fields")
-            val targetIndex = if (firstEmptyIndex < pinLength) firstEmptyIndex else pinLength - 1
             currentFocusIndex = targetIndex
             focusRequesters[targetIndex].requestFocus()
             keyboardController?.show()
+            keyboardVisible = true
         }
     }
 
     LaunchedEffect(currentFocusIndex) {
-        println("XXX  LaunchedEffect(currentFocusIndex) ${currentFocusIndex}")
         focusRequesters.getOrNull(currentFocusIndex)?.requestFocus()
+    }
+
+    // Callbacks for focus and keyboard actions
+    val onFocusRequest: (Int) -> Unit = { index ->
+        currentFocusIndex = index
+    }
+    val onKeyboardAction: (KeyboardAction) -> Unit = { action ->
+        when (action) {
+            KeyboardAction.Show -> {
+                if (!keyboardVisible) {
+                    keyboardController?.show()
+                    keyboardVisible = true
+                }
+            }
+            KeyboardAction.ClearFocus -> {
+                focusManager.clearFocus(true)
+                keyboardVisible = false
+            }
+        }
     }
 
     Row(
@@ -205,15 +219,11 @@ private fun PinField(
                 onPinChange = onPinChange,
                 focusRequesters = focusRequesters,
                 currentFocusIndex = currentFocusIndex,
-                onFocusChange = {
-                    println("XXX onFocusChange: $it")
-                    currentFocusIndex = it
-                },
-                firstEmptyIndex = firstEmptyIndex,
-                lastFilledIndex = lastFilledIndex,
+                onFocusRequest = onFocusRequest,
+                onKeyboardAction = onKeyboardAction,
+                targetIndex = targetIndex,
                 pinLength = pinLength,
                 isError = isError,
-                focusManager = focusManager,
                 style = style
             )
 
@@ -231,24 +241,19 @@ private fun PinInputField(
     onPinChange: (List<Char?>) -> Unit,
     focusRequesters: List<FocusRequester>,
     currentFocusIndex: Int,
-    onFocusChange: (Int) -> Unit,
-    firstEmptyIndex: Int,
-    lastFilledIndex: Int,
+    onFocusRequest: (Int) -> Unit,
+    onKeyboardAction: (KeyboardAction) -> Unit,
+    targetIndex: Int,
     pinLength: Int,
     isError: Boolean,
-    focusManager: androidx.compose.ui.focus.FocusManager,
     style: PinFieldStyle,
 ) {
-    val keyboardController = LocalSoftwareKeyboardController.current
     val char = pinValues.getOrNull(index)
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
-    val isFocusable = if (firstEmptyIndex < pinLength) {
-        index == firstEmptyIndex
-    } else {
-        index == pinLength - 1
-    }
+    // Only target index is focusable
+    val isFocusable = index == targetIndex
 
     Box(
         contentAlignment = Alignment.Center,
@@ -261,14 +266,9 @@ private fun PinInputField(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) {
-                val targetIndex = if (lastFilledIndex < pinLength - 1) {
-                    lastFilledIndex
-                } else {
-                    pinLength - 1
-                }
+                // Always focus the target field
                 focusRequesters[targetIndex].requestFocus()
-                // 🔥 Explicitly request keyboard even if focus already existed
-                keyboardController?.show()
+                onKeyboardAction(KeyboardAction.Show)
             }
     ) {
         Box(
@@ -286,8 +286,8 @@ private fun PinInputField(
                         pinValues = pinValues,
                         pinLength = pinLength,
                         onPinChange = onPinChange,
-                        onFocusChange = onFocusChange,
-                        focusManager = focusManager
+                        onFocusRequest = onFocusRequest,
+                        onKeyboardAction = onKeyboardAction
                     )
                 },
                 keyboardOptions = KeyboardOptions(
@@ -305,7 +305,7 @@ private fun PinInputField(
                     .focusRequester(focusRequesters[index])
                     .onFocusChanged { focusState ->
                         if (focusState.isFocused) {
-                            onFocusChange(index)
+                            onFocusRequest(index)
                         }
                     }
                     .onKeyEvent { event ->
@@ -315,7 +315,7 @@ private fun PinInputField(
                             char = char,
                             pinValues = pinValues,
                             onPinChange = onPinChange,
-                            onFocusChange = onFocusChange
+                            onFocusRequest = onFocusRequest
                         )
                     }
             )
@@ -339,6 +339,9 @@ private fun PinInputField(
     }
 }
 
+enum class KeyboardAction {
+    Show, ClearFocus
+}
 
 private fun handleValueChange(
     newValue: String,
@@ -346,16 +349,16 @@ private fun handleValueChange(
     pinValues: List<Char?>,
     pinLength: Int,
     onPinChange: (List<Char?>) -> Unit,
-    onFocusChange: (Int) -> Unit,
-    focusManager: androidx.compose.ui.focus.FocusManager,
+    onFocusRequest: (Int) -> Unit,
+    onKeyboardAction: (KeyboardAction) -> Unit
 ) {
     when {
         newValue.isEmpty() -> handleDeletion(
             index,
             pinValues,
             onPinChange,
-            onFocusChange,
-            pinLength
+            onFocusRequest,
+            onKeyboardAction
         )
 
         else -> {
@@ -370,31 +373,20 @@ private fun handleValueChange(
                     index,
                     pinValues,
                     onPinChange,
-                    onFocusChange,
-                    pinLength,
-                    focusManager
+                    onFocusRequest,
+                    onKeyboardAction,
+                    pinLength
                 )
 
                 // Pasting multiple digits
-                else ->
-                    if (index == pinLength - 1 && pinValues.all { it != null }) {
-                        // nadpisz ostatnie pole ostatnią cyfrą z newValue
-                        val newPin = pinValues.toMutableList().apply {
-                            this[index] = digits.last()
-                        }
-                        onPinChange(newPin)
-                        println("XXX Pasting multiple digits, clearing focus")
-                        focusManager.clearFocus(true)
-                    } else {
-                        handlePaste(
-                            digits,
-                            pinValues,
-                            onPinChange,
-                            onFocusChange,
-                            pinLength,
-                            focusManager
-                        )
-                    }
+                else -> handlePaste(
+                    digits,
+                    pinValues,
+                    onPinChange,
+                    onFocusRequest,
+                    onKeyboardAction,
+                    pinLength
+                )
             }
         }
     }
@@ -404,38 +396,45 @@ private fun handlePaste(
     digits: String,
     pinValues: List<Char?>,
     onPinChange: (List<Char?>) -> Unit,
-    onFocusChange: (Int) -> Unit,
-    pinLength: Int,
-    focusManager: androidx.compose.ui.focus.FocusManager,
+    onFocusRequest: (Int) -> Unit,
+    onKeyboardAction: (KeyboardAction) -> Unit,
+    pinLength: Int
 ) {
     val newPin = pinValues.toMutableList()
+
+    // Count available empty fields
+    val emptyFieldCount = newPin.count { it == null }
+    if (emptyFieldCount == 0) return // All fields already filled
+
+    // Only take as many digits as we have empty fields
+    val digitsToPaste = digits.take(emptyFieldCount)
     var digitsUsed = 0
-    var fieldIndex = 0
 
-    // Find first empty field
-    val startIndex = newPin.indexOfFirst { it == null }
-
-    if (startIndex == -1) return // All fields already filled
-
-    // Fill sequentially from first empty field
-    while (fieldIndex < pinLength && digitsUsed < digits.length) {
-        if (newPin[fieldIndex] == null) {
-            newPin[fieldIndex] = digits[digitsUsed]
+    // Fill empty fields in order
+    for (i in newPin.indices) {
+        if (newPin[i] == null) {
+            newPin[i] = digitsToPaste[digitsUsed]
             digitsUsed++
+            if (digitsUsed >= digitsToPaste.length) break
         }
-        fieldIndex++
     }
 
     onPinChange(newPin)
 
-    // Move to next field if available
-    if (fieldIndex < pinLength - 1) {
-        onFocusChange(fieldIndex + 1)
-    } else {
-        println("XXX handlePaste, clearing focus")
-        focusManager.clearFocus(true)
-    }
+    // Set focus to next empty field or last field if all filled
+    val nextEmptyIndex = newPin.indexOfFirst { it == null }
 
+    // Move to next field if available
+    when {
+        nextEmptyIndex < pinLength - 1 -> {
+            onFocusRequest(nextEmptyIndex + 1)
+            onKeyboardAction(KeyboardAction.Show)
+        }
+        nextEmptyIndex == -1 -> {
+            // Last field - clear focus and hide keyboard
+            onKeyboardAction(KeyboardAction.ClearFocus)
+        }
+    }
 }
 
 
@@ -444,9 +443,9 @@ private fun handleSingleDigit(
     index: Int,
     pinValues: List<Char?>,
     onPinChange: (List<Char?>) -> Unit,
-    onFocusChange: (Int) -> Unit,
-    pinLength: Int,
-    focusManager: androidx.compose.ui.focus.FocusManager,
+    onFocusRequest: (Int) -> Unit,
+    onKeyboardAction: (KeyboardAction) -> Unit,
+    pinLength: Int
 ) {
     val newPin = pinValues.toMutableList().apply {
         this[index] = digit
@@ -456,11 +455,12 @@ private fun handleSingleDigit(
     // Move to next field if available
     when {
         index < pinLength - 1 -> {
-            onFocusChange(index + 1)
+            onFocusRequest(index + 1)
+            onKeyboardAction(KeyboardAction.Show)
         }
         index == pinLength - 1 -> {
-            println("XXX handleSingleDigit, clearing focus")
-            focusManager.clearFocus(true)
+            // Last field - clear focus and hide keyboard
+            onKeyboardAction(KeyboardAction.ClearFocus)
         }
     }
 }
@@ -469,19 +469,17 @@ private fun handleDeletion(
     index: Int,
     pinValues: List<Char?>,
     onPinChange: (List<Char?>) -> Unit,
-    onFocusChange: (Int) -> Unit,
-    pinLength: Int,
+    onFocusRequest: (Int) -> Unit,
+    onKeyboardAction: (KeyboardAction) -> Unit
 ) {
-    println("XXX handleDeletion at index: $index")
     val newPin = pinValues.toMutableList().apply {
         this[index] = null
     }
     onPinChange(newPin)
 
-    // Move to previous field if available
-    if (index != pinLength - 1 && index > 0) {
-        onFocusChange(index - 1)
-    }
+    // Stay in current field after deletion
+    onFocusRequest(index)
+    onKeyboardAction(KeyboardAction.Show)
 }
 
 private fun handleKeyEvent(
@@ -490,25 +488,32 @@ private fun handleKeyEvent(
     char: Char?,
     pinValues: List<Char?>,
     onPinChange: (List<Char?>) -> Unit,
-    onFocusChange: (Int) -> Unit,
+    onFocusRequest: (Int) -> Unit,
 ): Boolean {
     return if (event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DEL) {
-        if (char == null && index > 0) {
-            // Delete in empty field - clear previous
+        if (char != null) {
+            // If current field has a value, delete it
+            val newPin = pinValues.toMutableList().apply {
+                this[index] = null
+            }
+            onPinChange(newPin)
+            onFocusRequest(index)
+            true
+        } else if (index > 0) {
+            // If current field is empty, delete previous field
             val newPin = pinValues.toMutableList().apply {
                 this[index - 1] = null
             }
-            println("XXX handleKeyEvent in empty field, moving focus to previous index: ${index - 1}")
             onPinChange(newPin)
-            onFocusChange(index - 1)
+            onFocusRequest(index - 1)
             true
-        } else false
+        } else {
+            false
+        }
     } else false
 }
 
 // VisualTransformation to handle PIN input completion
-// This transformation is used to indicate that the PIN input is complete
-// handle selector at the end
 object PinTransformationDone : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         return TransformedText(
