@@ -163,7 +163,6 @@ private fun PinField(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequesters = remember { List(pinLength) { FocusRequester() } }
     var currentFocusIndex by remember { mutableIntStateOf(0) }
-    var keyboardVisible by remember { mutableStateOf(true) }
 
     // Calculate target focus index
     val targetIndex by remember(pinValues) {
@@ -180,7 +179,6 @@ private fun PinField(
             currentFocusIndex = targetIndex
             focusRequesters[targetIndex].requestFocus()
             keyboardController?.show()
-            keyboardVisible = true
         }
     }
 
@@ -195,14 +193,10 @@ private fun PinField(
     val onKeyboardAction: (KeyboardAction) -> Unit = { action ->
         when (action) {
             KeyboardAction.Show -> {
-                if (!keyboardVisible) {
-                    keyboardController?.show()
-                    keyboardVisible = true
-                }
+                keyboardController?.show()
             }
             KeyboardAction.ClearFocus -> {
                 focusManager.clearFocus(true)
-                keyboardVisible = false
             }
         }
     }
@@ -266,7 +260,6 @@ private fun PinInputField(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) {
-                // Always focus the target field
                 focusRequesters[targetIndex].requestFocus()
                 onKeyboardAction(KeyboardAction.Show)
             }
@@ -456,7 +449,7 @@ private fun handleSingleDigit(
     when {
         index < pinLength - 1 -> {
             onFocusRequest(index + 1)
-            onKeyboardAction(KeyboardAction.Show)
+     //       onKeyboardAction(KeyboardAction.Show)
         }
         index == pinLength - 1 -> {
             // Last field - clear focus and hide keyboard
@@ -479,7 +472,6 @@ private fun handleDeletion(
 
     // Stay in current field after deletion
     onFocusRequest(index)
-    onKeyboardAction(KeyboardAction.Show)
 }
 
 private fun handleKeyEvent(
