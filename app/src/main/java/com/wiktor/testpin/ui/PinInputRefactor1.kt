@@ -109,6 +109,7 @@ fun PinFieldWithErrorMessage(
     val totalWidth = remember(pinLength, style) {
         (style.itemWidth * pinLength) + (style.spacing * (pinLength - 1))
     }
+    println("XXX PinFieldWithErrorMessage: $totalWidth")
 
     Column(
         modifier = modifier,
@@ -174,7 +175,7 @@ private fun rememberKeyboardVisibility(): State<Boolean> {
             view.viewTreeObserver.removeOnGlobalLayoutListener(listener)
         }
     }
- //   println("XXX rememberKeyboardVisibility: ${isVisible.value}")
+    //   println("XXX rememberKeyboardVisibility: ${isVisible.value}")
     return isVisible
 }
 

@@ -6,14 +6,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,7 +64,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-
 @Composable
 fun PinScreen() {
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -83,25 +92,44 @@ fun PinScreen() {
         )
     }
 
+    val pinLength = 6
+    val totalWidthPx = with(LocalDensity.current) {
+        ((customStyle.itemWidth * pinLength) + (customStyle.spacing * (pinLength - 1))).toPx()
+    }
+
+    var containerWidthPx by remember { mutableStateOf(0f) }
+
     Scaffold { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(24.dp),
+                .padding(24.dp)
+                .onGloballyPositioned { coordinates ->
+                    containerWidthPx = coordinates.size.width.toFloat()
+                },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            PinFieldWithErrorMessage(
-                pinLength = 6,
-                errorMessage = errorMessage,
-                onPinChange = { newPin ->
-                    pinCode = newPin
-                    // Clear error when user types
-                    errorMessage = null
-                },
-                style = customStyle,
-                modifier = Modifier.padding(vertical = 32.dp)
-            )
+            if (containerWidthPx == 0f) {
+                // Waiting for layout to measure
+                Text("Measuring layout...")
+            } else if (containerWidthPx >= totalWidthPx) {
+                PinFieldWithErrorMessage(
+                    pinLength = pinLength,
+                    errorMessage = errorMessage,
+                    onPinChange = { newPin ->
+                        pinCode = newPin
+                        errorMessage = null
+                    },
+                    style = customStyle,
+                    modifier = Modifier.padding(vertical = 32.dp)
+                )
+            } else {
+                Text(
+                    "Screen too small to display PIN fields properly.",
+                    color = Color.Red
+                )
+            }
 
             Spacer(Modifier.height(24.dp))
 
