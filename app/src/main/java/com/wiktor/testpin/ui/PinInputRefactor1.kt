@@ -1,4 +1,6 @@
+import android.graphics.Rect
 import android.view.KeyEvent
+import android.view.ViewTreeObserver
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,7 +22,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -39,6 +43,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
@@ -164,6 +169,10 @@ private fun PinField(
     val focusRequesters = remember { List(pinLength) { FocusRequester() } }
     var currentFocusIndex by remember { mutableIntStateOf(0) }
 
+    // Track real keyboard state
+    val isKeyboardOpen by rememberKeyboardVisibility()
+    var lastKeyboardState by remember { mutableStateOf(isKeyboardOpen) }
+
     // Calculate target focus index
     val targetIndex by remember(pinValues) {
         derivedStateOf {
@@ -179,6 +188,7 @@ private fun PinField(
             currentFocusIndex = targetIndex
             focusRequesters[targetIndex].requestFocus()
             keyboardController?.show()
+            lastKeyboardState = true
         }
     }
 
@@ -186,10 +196,20 @@ private fun PinField(
         focusRequesters.getOrNull(currentFocusIndex)?.requestFocus()
     }
 
+    // Update lastKeyboardState when keyboard state changes
+    LaunchedEffect(isKeyboardOpen) {
+        lastKeyboardState = isKeyboardOpen
+    }
+
     // Callbacks for focus and keyboard actions
     val onFocusRequest: (Int) -> Unit = { index ->
         currentFocusIndex = index
+        // If keyboard was manually hidden, show it again
+        if (!isKeyboardOpen && !lastKeyboardState) {
+            keyboardController?.show()
+        }
     }
+
     val onKeyboardAction: (KeyboardAction) -> Unit = { action ->
         when (action) {
             KeyboardAction.Show -> {
@@ -197,6 +217,7 @@ private fun PinField(
             }
             KeyboardAction.ClearFocus -> {
                 focusManager.clearFocus(true)
+                keyboardController?.hide()
             }
         }
     }
@@ -226,6 +247,29 @@ private fun PinField(
             }
         }
     }
+}
+
+@Composable
+private fun rememberKeyboardVisibility(): State<Boolean> {
+    val view = LocalView.current
+    val isVisible = remember { mutableStateOf(false) }
+
+    DisposableEffect(view) {
+        val listener = ViewTreeObserver.OnGlobalLayoutListener {
+            val rect = Rect()
+            view.getWindowVisibleDisplayFrame(rect)
+            val screenHeight = view.rootView.height
+            val keypadHeight = screenHeight - rect.bottom
+            isVisible.value = keypadHeight > screenHeight * 0.15
+        }
+
+        view.viewTreeObserver.addOnGlobalLayoutListener(listener)
+        onDispose {
+            view.viewTreeObserver.removeOnGlobalLayoutListener(listener)
+        }
+    }
+
+    return isVisible
 }
 
 @Composable
@@ -430,7 +474,6 @@ private fun handlePaste(
     }
 }
 
-
 private fun handleSingleDigit(
     digit: Char,
     index: Int,
@@ -449,7 +492,6 @@ private fun handleSingleDigit(
     when {
         index < pinLength - 1 -> {
             onFocusRequest(index + 1)
-     //       onKeyboardAction(KeyboardAction.Show)
         }
         index == pinLength - 1 -> {
             // Last field - clear focus and hide keyboard
@@ -472,6 +514,7 @@ private fun handleDeletion(
 
     // Stay in current field after deletion
     onFocusRequest(index)
+ //   onKeyboardAction(KeyboardAction.Show)
 }
 
 private fun handleKeyEvent(
