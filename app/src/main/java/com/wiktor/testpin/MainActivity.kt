@@ -1,7 +1,9 @@
 package com.wiktor.testpin
 
 import PinFieldStyle
-import PinFieldWithErrorMessage
+import PinFieldWithErrorMessage2
+import PinFieldWithErrorMessage3
+import PinState
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -54,7 +56,8 @@ class MainActivity : ComponentActivity() {
 
                   //  PinScreen()
                   //  PinScreenRef()
-                    PinScreen()
+                     PinScreen()
+                //    SamplePinEntry()
 
                  //   PinInputExample()
                     //    PinInputExample()
@@ -114,7 +117,7 @@ fun PinScreen() {
                 // Waiting for layout to measure
                 Text("Measuring layout...")
             } else if (containerWidthPx >= totalWidthPx) {
-                PinFieldWithErrorMessage(
+                PinFieldWithErrorMessage2(
                     pinLength = pinLength,
                     errorMessage = errorMessage,
                     onPinChange = { newPin ->
@@ -145,5 +148,30 @@ fun PinScreen() {
                 Text("Verify PIN")
             }
         }
+    }
+}
+
+@Composable
+fun SamplePinEntry() {
+    var pinValue by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    val pinState = remember {
+        PinState(length = 4) { newPin ->
+            pinValue = newPin
+            error = if (newPin.length < 4) "PIN too short" else null
+        }
+    }
+
+    Column(modifier = Modifier.padding(16.dp)) {
+        PinFieldWithErrorMessage3(
+            length = 4,
+            pinState = pinState,
+            errorMessage = error
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "Entered PIN: $pinValue")
     }
 }

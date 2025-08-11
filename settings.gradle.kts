@@ -21,4 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "TestPin"
 include(":app")
- 
+include(":baselineprofile")
