@@ -1,8 +1,9 @@
 package com.wiktor.testpin
 
 import PinFieldStyle
-import PinFieldWithErrorMessage2
+import PinFieldWithErrorMessage
 import PinFieldWithErrorMessage3
+import PinFieldWithErrorMessageMerged
 import PinState
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -117,7 +118,7 @@ fun PinScreen() {
                 // Waiting for layout to measure
                 Text("Measuring layout...")
             } else if (containerWidthPx >= totalWidthPx) {
-                PinFieldWithErrorMessage2(
+                PinFieldWithErrorMessage(
                     pinLength = pinLength,
                     errorMessage = errorMessage,
                     onPinChange = { newPin ->
