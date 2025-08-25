@@ -4,7 +4,6 @@ import PinFieldStyle
 import PinFieldWithErrorMessage
 import android.annotation.SuppressLint
 import android.os.Bundle
-import android.widget.EditText
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -84,7 +82,7 @@ fun PinScreen() {
         )
     }
 
-    val pinLength = 6
+    val pinLength = 5
     val totalWidthPx = with(LocalDensity.current) {
         ((customStyle.itemWidth * pinLength) + (customStyle.spacing * (pinLength - 1))).toPx()
     }

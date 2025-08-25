@@ -109,7 +109,6 @@ fun PinFieldWithErrorMessage(
     val totalWidth = remember(pinLength, style) {
         (style.itemWidth * pinLength) + (style.spacing * (pinLength - 1))
     }
-    println("XXX PinFieldWithErrorMessage: $totalWidth")
 
     Column(
         modifier = modifier,
@@ -123,8 +122,21 @@ fun PinFieldWithErrorMessage(
             PinFields(
                 pinValues = pinValues,
                 onPinChange = { newValues ->
-                    pinValues.clear()
-                    pinValues.addAll(newValues)
+                /*    pinValues.clear()
+                    pinValues.addAll(newValues)*/
+                    // Update in place to avoid multiple state list removals/additions
+                    val size = minOf(pinValues.size, newValues.size)
+                    for (i in 0 until size) {
+                        if (pinValues[i] != newValues[i]) {
+                            pinValues[i] = newValues[i]
+                        }
+                    }
+                    // If new list is longer (shouldn't happen), ignore extras; if shorter, null the rest
+                    if (newValues.size < pinValues.size) {
+                        for (i in newValues.size until pinValues.size) {
+                            if (pinValues[i] != null) pinValues[i] = null
+                        }
+                    }
                     onPinChange(pinValues.joinToString("") { it?.toString() ?: "" })
                 },
                 pinLength = pinLength,
@@ -202,7 +214,7 @@ private fun PinFields(
         currentFocusIndex = index
     }
     val onKeyboardAction: (KeyboardAction) -> Unit = { action ->
-        println("XXX KeyboardAction keyboardVisible: ${keyboardVisible} isKeyboardOpen:${isKeyboardOpen} action: $action")
+        // Logging removed for performance
         when (action) {
             KeyboardAction.Show -> {
                 if (!keyboardVisible || !isKeyboardOpen) {
