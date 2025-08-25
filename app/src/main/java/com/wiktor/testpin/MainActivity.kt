@@ -2,10 +2,9 @@ package com.wiktor.testpin
 
 import PinFieldStyle
 import PinFieldWithErrorMessage
-import PinFieldWithErrorMessage3
-import PinFieldWithErrorMessageMerged
-import PinState
+import android.annotation.SuppressLint
 import android.os.Bundle
+import android.widget.EditText
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,7 +13,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +30,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,6 +38,7 @@ import com.wiktor.testpin.ui.theme.TestPinTheme
 
 
 class MainActivity : ComponentActivity() {
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -45,23 +48,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(top = 64.dp, start = 16.dp, end = 16.dp)
-                ) { paddingValues ->
-                    //     PinInput(6,{}, isError = false)
-
-                    //      DebugNumericKeyboardSafe()
-                  //      PinInput2(4,{}, isError = false) // poprawnie dzialajacy
-                  //  PinInputTestingRefactor(4,{}, isError = false)
-                        // PinInputDone(4,{}, isError = false)
-                   // PinInputChatGPT(4,{}, isError = false)
-                //    PinInputMiddle(4,{}, isError = false)
-
-                  //  PinScreen()
-                  //  PinScreenRef()
-                     PinScreen()
-                //    SamplePinEntry()
-
-                 //   PinInputExample()
-                    //    PinInputExample()
+                ) { _->
+                    PinScreen()
                 }
             }
         }
@@ -137,7 +125,20 @@ fun PinScreen() {
 
             Spacer(Modifier.height(24.dp))
 
-            Button(
+            var text by remember { mutableStateOf("") }
+            OutlinedTextField(
+                value = text,
+                onValueChange = { newText ->
+                    // opcjonalnie filtruj tylko cyfry
+                    if (newText.all { it.isDigit() }) {
+                        text = newText
+                    }
+                },
+                label = { Text("Wpisz liczby") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+
+       /*     Button(
                 onClick = {
                     errorMessage = when {
                         pinCode.length < 6 -> "Please complete the PIN"
@@ -147,32 +148,7 @@ fun PinScreen() {
                 }
             ) {
                 Text("Verify PIN")
-            }
+            }*/
         }
-    }
-}
-
-@Composable
-fun SamplePinEntry() {
-    var pinValue by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    val pinState = remember {
-        PinState(length = 4) { newPin ->
-            pinValue = newPin
-            error = if (newPin.length < 4) "PIN too short" else null
-        }
-    }
-
-    Column(modifier = Modifier.padding(16.dp)) {
-        PinFieldWithErrorMessage3(
-            length = 4,
-            pinState = pinState,
-            errorMessage = error
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(text = "Entered PIN: $pinValue")
     }
 }

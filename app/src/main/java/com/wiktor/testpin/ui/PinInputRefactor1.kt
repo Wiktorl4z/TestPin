@@ -500,6 +500,7 @@ private fun handleKeyEvent(
     onPinChange: (List<Char?>) -> Unit,
     onFocusRequest: (Int) -> Unit,
 ): Boolean {
+    println("XXX handleKeyEvent ${event.nativeKeyEvent.keyCode}")
     return if (event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DEL) {
         if (char != null) {
             // If current field has a value, delete it
