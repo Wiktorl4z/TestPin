@@ -4,6 +4,7 @@ import android.view.ViewTreeObserver
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -98,6 +99,7 @@ fun PinFieldWithErrorMessage(
     modifier: Modifier = Modifier,
     style: PinFieldStyle = defaultPinFieldStyle(),
 ) {
+    println("XXX PinFieldWithErrorMessage recomposed")
     // Internal state for PIN values
     val pinValues = remember {
         mutableStateListOf<Char?>().apply {
@@ -169,6 +171,29 @@ fun PinFieldWithErrorMessage(
 }
 
 @Composable
+private fun rememberKeyboardVisibility(): State<Boolean> {
+    val view = LocalView.current
+    val isVisible = remember { mutableStateOf(false) }
+
+    DisposableEffect(view) {
+        val listener = ViewTreeObserver.OnGlobalLayoutListener {
+            val rect = Rect()
+            view.getWindowVisibleDisplayFrame(rect)
+            val screenHeight = view.rootView.height
+            val keypadHeight = screenHeight - rect.bottom
+            isVisible.value = keypadHeight > screenHeight * 0.15
+        }
+
+        view.viewTreeObserver.addOnGlobalLayoutListener(listener)
+        onDispose {
+            view.viewTreeObserver.removeOnGlobalLayoutListener(listener)
+        }
+    }
+    //   println("XXX rememberKeyboardVisibility: ${isVisible.value}")
+    return isVisible
+}
+
+@Composable
 private fun PinFields(
     pinValues: List<Char?>,
     onPinChange: (List<Char?>) -> Unit,
@@ -177,6 +202,7 @@ private fun PinFields(
     shouldRefocus: Boolean = false,
     style: PinFieldStyle,
 ) {
+    println("XXX PinField recomposed")
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequesters = remember { List(pinLength) { FocusRequester() } }
@@ -184,7 +210,7 @@ private fun PinFields(
     var keyboardVisible by remember { mutableStateOf(true) }
 
     // Track real keyboard state
-    val isKeyboardOpen by rememberMyKeyboardVisibility()
+    val isKeyboardOpen by rememberKeyboardVisibility()
 
     // Calculate target focus index
     val targetIndex by remember(pinValues) {
@@ -240,7 +266,6 @@ private fun PinFields(
                 pinValues = pinValues,
                 onPinChange = onPinChange,
                 focusRequesters = focusRequesters,
-                currentFocusIndex = currentFocusIndex,
                 onFocusRequest = onFocusRequest,
                 onKeyboardAction = onKeyboardAction,
                 targetIndex = targetIndex,
@@ -262,7 +287,6 @@ private fun PinInputField(
     pinValues: List<Char?>,
     onPinChange: (List<Char?>) -> Unit,
     focusRequesters: List<FocusRequester>,
-    currentFocusIndex: Int,
     onFocusRequest: (Int) -> Unit,
     onKeyboardAction: (KeyboardAction) -> Unit,
     targetIndex: Int,
@@ -270,6 +294,7 @@ private fun PinInputField(
     isError: Boolean,
     style: PinFieldStyle,
 ) {
+    println("XXX PinInputField recomposed")
     val char = pinValues.getOrNull(index)
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -547,40 +572,4 @@ object PinTransformationDone : VisualTransformation {
             }
         )
     }
-}
-
-@Composable
-fun rememberMyKeyboardVisibility(): State<Boolean> { // Zmieniona nazwa dla jasności
-    val view = LocalView.current
-    val isVisible = remember { mutableStateOf(false) }
-
-    DisposableEffect(view) {
-        // Twoje logi można zostawić lub usunąć, jeśli już nie są potrzebne do debugowania
-        println("XXX rememberMyKeyboardVisibilityModified ENTERED (subscribed)")
-        val listener = ViewTreeObserver.OnGlobalLayoutListener {
-            val rect = Rect()
-            view.getWindowVisibleDisplayFrame(rect)
-            val screenHeight = view.rootView.height
-            val keypadHeight = screenHeight - rect.bottom
-
-            // Oblicz nową potencjalną wartość stanu
-            val keyboardNowConsideredVisible = keypadHeight > screenHeight * 0.15
-
-            // >>> POCZĄTEK MODYFIKACJI <<<
-            // Aktualizuj stan `isVisible.value` tylko wtedy, gdy nowa wartość
-            // różni się od aktualnie przechowywanej wartości.
-            if (isVisible.value != keyboardNowConsideredVisible) {
-                isVisible.value = keyboardNowConsideredVisible
-            }
-            // >>> KONIEC MODYFIKACJI <<<
-        }
-
-        view.viewTreeObserver.addOnGlobalLayoutListener(listener)
-        onDispose {
-            println("XXX rememberMyKeyboardVisibilityModified QUIT (unsubscribed)")
-            view.viewTreeObserver.removeOnGlobalLayoutListener(listener)
-        }
-    }
-    println("XXX rememberMyKeyboardVisibilityModified return: ${isVisible.value}")
-    return isVisible
 }
