@@ -338,7 +338,12 @@ private fun PinInputField(
                     )
                 },
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
+                    keyboardType = KeyboardType.NumberPassword,
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                    autoCorrect = false
+                ),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                    onDone = { onKeyboardAction(KeyboardAction.ClearFocus) }
                 ),
                 textStyle = style.textStyle,
                 singleLine = true,
