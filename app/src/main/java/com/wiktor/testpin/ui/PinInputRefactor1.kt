@@ -1,3 +1,5 @@
+package com.wiktor.testpin.ui
+
 import android.graphics.Rect
 import android.view.KeyEvent
 import android.view.ViewTreeObserver
@@ -24,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
@@ -32,6 +35,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,8 +59,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.util.Log
+
+private const val LOG_TAG = "PIN_DEBUG"
 
 // Styling configuration class
+@Immutable
 data class PinFieldStyle(
     val itemWidth: Dp,
     val itemHeight: Dp,
@@ -99,7 +107,7 @@ fun PinFieldWithErrorMessage(
     modifier: Modifier = Modifier,
     style: PinFieldStyle = defaultPinFieldStyle(),
 ) {
-    println("XXX PinFieldWithErrorMessage recomposed")
+    Log.d(LOG_TAG, "[Recompose] PinFieldWithErrorMessage")
     // Internal state for PIN values
     val pinValues = remember {
         mutableStateListOf<Char?>().apply {
@@ -202,7 +210,7 @@ private fun PinFields(
     shouldRefocus: Boolean = false,
     style: PinFieldStyle,
 ) {
-    println("XXX PinField recomposed")
+    Log.d(LOG_TAG, "[Recompose] PinFields")
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequesters = remember { List(pinLength) { FocusRequester() } }
@@ -221,11 +229,19 @@ private fun PinFields(
         }
     }
 
+    // Per-index focus flags so only affected cells recompose
+    val focusFlags = remember(pinLength) { List(pinLength) { mutableStateOf(false) } }
+    LaunchedEffect(targetIndex) {
+        focusFlags.forEachIndexed { i, s -> s.value = i == targetIndex }
+    }
+
     // Handle refocus when error occurs
     LaunchedEffect(shouldRefocus) {
         if (shouldRefocus) {
+            // Ensure flags are updated first so the target field is editable
+            focusFlags.forEachIndexed { i, s -> s.value = i == targetIndex }
             currentFocusIndex = targetIndex
-            focusRequesters[targetIndex].requestFocus()
+            // Defer actual requestFocus to LaunchedEffect(currentFocusIndex)
             keyboardController?.show()
             keyboardVisible = true
         }
@@ -237,7 +253,10 @@ private fun PinFields(
 
     // Callbacks for focus and keyboard actions
     val onFocusRequest: (Int) -> Unit = { index ->
+        // Update focus index and flags immediately to avoid IME flicker; actual focus request is deferred
         currentFocusIndex = index
+        focusFlags.forEachIndexed { i, s -> s.value = i == index }
+        // Defer actual requestFocus to LaunchedEffect(currentFocusIndex)
     }
     val onKeyboardAction: (KeyboardAction) -> Unit = { action ->
         // Logging removed for performance
@@ -255,6 +274,48 @@ private fun PinFields(
         }
     }
 
+    // Stable callback states to minimize parameter identity changes
+    val onFocusRequestState = rememberUpdatedState(onFocusRequest)
+    val onKeyboardActionState = rememberUpdatedState(onKeyboardAction)
+
+    val onValueChangeState = rememberUpdatedState<(Int, String) -> Unit>({ idx, newValue ->
+        handleValueChange(
+            newValue = newValue,
+            index = idx,
+            pinValues = pinValues,
+            pinLength = pinLength,
+            onPinChange = onPinChange,
+            onFocusRequest = onFocusRequestState.value,
+            onKeyboardAction = onKeyboardActionState.value
+        )
+    })
+
+    val onKeyEventState = rememberUpdatedState<(Int, Char?, androidx.compose.ui.input.key.KeyEvent) -> Boolean>({ idx, ch, event ->
+        handleKeyEvent(
+            event = event,
+            index = idx,
+            char = ch,
+            pinValues = pinValues,
+            onPinChange = onPinChange,
+            onFocusRequest = onFocusRequestState.value,
+            onKeyboardAction = onKeyboardActionState.value
+        )
+    })
+
+    val onContainerClickState = rememberUpdatedState<() -> Unit>({
+        // Route focus through onFocusRequest to ensure flags are updated first
+        onFocusRequestState.value(targetIndex)
+        // Force focus even if index hasn't changed (e.g., after keyboard was hidden)
+        focusRequesters.getOrNull(targetIndex)?.requestFocus()
+        onKeyboardActionState.value(KeyboardAction.Show)
+    })
+
+    // Stable wrapper lambdas whose identities don't change across recompositions
+    val onFocusRequestStable = remember { { i: Int -> onFocusRequestState.value(i) } }
+    val onValueChangeStable = remember { { idx: Int, newVal: String -> onValueChangeState.value(idx, newVal) } }
+    val onKeyEventStable = remember { { idx: Int, ch: Char?, event: androidx.compose.ui.input.key.KeyEvent -> onKeyEventState.value(idx, ch, event) } }
+    val onContainerClickStable = remember { { onContainerClickState.value() } }
+
     Row(
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
@@ -263,15 +324,15 @@ private fun PinFields(
         repeat(pinLength) { index ->
             PinInputField(
                 index = index,
-                pinValues = pinValues,
-                onPinChange = onPinChange,
-                focusRequesters = focusRequesters,
-                onFocusRequest = onFocusRequest,
-                onKeyboardAction = onKeyboardAction,
-                targetIndex = targetIndex,
-                pinLength = pinLength,
+                value = pinValues.getOrNull(index),
+                focusRequester = focusRequesters[index],
+                isFocusable = focusFlags[index].value,
                 isError = isError,
-                style = style
+                style = style,
+                onFocusRequest = onFocusRequestStable,
+                onValueChange = onValueChangeStable,
+                onKeyEvent = onKeyEventStable,
+                onContainerClick = onContainerClickStable
             )
 
             if (index < pinLength - 1) {
@@ -284,23 +345,19 @@ private fun PinFields(
 @Composable
 private fun PinInputField(
     index: Int,
-    pinValues: List<Char?>,
-    onPinChange: (List<Char?>) -> Unit,
-    focusRequesters: List<FocusRequester>,
-    onFocusRequest: (Int) -> Unit,
-    onKeyboardAction: (KeyboardAction) -> Unit,
-    targetIndex: Int,
-    pinLength: Int,
+    value: Char?,
+    focusRequester: FocusRequester,
+    isFocusable: Boolean,
     isError: Boolean,
     style: PinFieldStyle,
+    onFocusRequest: (Int) -> Unit,
+    onValueChange: (Int, String) -> Unit,
+    onKeyEvent: (Int, Char?, androidx.compose.ui.input.key.KeyEvent) -> Boolean,
+    onContainerClick: () -> Unit,
 ) {
-    println("XXX PinInputField recomposed")
-    val char = pinValues.getOrNull(index)
+    Log.d(LOG_TAG, "[Recompose] PinInputField index=$index value=${value ?: '_'} focusable=$isFocusable isError=$isError")
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-
-    // Only target index is focusable
-    val isFocusable = index == targetIndex
 
     Box(
         contentAlignment = Alignment.Center,
@@ -313,9 +370,7 @@ private fun PinInputField(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) {
-                // Always focus the target field
-                focusRequesters[targetIndex].requestFocus()
-                onKeyboardAction(KeyboardAction.Show)
+                onContainerClick()
             }
     ) {
         Box(
@@ -325,17 +380,10 @@ private fun PinInputField(
             contentAlignment = Alignment.Center
         ) {
             BasicTextField(
-                value = char?.toString() ?: "",
+                value = value?.toString() ?: "",
                 onValueChange = { newValue ->
-                    handleValueChange(
-                        newValue = newValue,
-                        index = index,
-                        pinValues = pinValues,
-                        pinLength = pinLength,
-                        onPinChange = onPinChange,
-                        onFocusRequest = onFocusRequest,
-                        onKeyboardAction = onKeyboardAction
-                    )
+                    Log.d(LOG_TAG, "[Input] onValueChange index=${index} new='${newValue}'")
+                    onValueChange(index, newValue)
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.NumberPassword,
@@ -351,24 +399,14 @@ private fun PinInputField(
                 cursorBrush = SolidColor(Color.Transparent),
                 visualTransformation = PinTransformationDone,
                 interactionSource = interactionSource,
+                readOnly = false,
                 enabled = isFocusable,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(focusRequesters[index])
-                    .onFocusChanged { focusState ->
-                        if (focusState.isFocused) {
-                            onFocusRequest(index)
-                        }
-                    }
+                    .focusRequester(focusRequester)
                     .onKeyEvent { event ->
-                        handleKeyEvent(
-                            event = event,
-                            index = index,
-                            char = char,
-                            pinValues = pinValues,
-                            onPinChange = onPinChange,
-                            onFocusRequest = onFocusRequest
-                        )
+                        Log.d(LOG_TAG, "[KeyEvent] onKeyEvent index=${index} event=${event}")
+                        onKeyEvent(index, value, event)
                     }
             )
         }
@@ -541,8 +579,9 @@ private fun handleKeyEvent(
     pinValues: List<Char?>,
     onPinChange: (List<Char?>) -> Unit,
     onFocusRequest: (Int) -> Unit,
+    onKeyboardAction: (KeyboardAction) -> Unit,
 ): Boolean {
-    println("XXX handleKeyEvent ${event.nativeKeyEvent.keyCode}")
+    Log.d(LOG_TAG, "[KeyEvent] handleKeyEvent code=${event.nativeKeyEvent.keyCode}")
     return if (event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DEL) {
         if (char != null) {
             // If current field has a value, delete it
@@ -551,6 +590,7 @@ private fun handleKeyEvent(
             }
             onPinChange(newPin)
             onFocusRequest(index)
+            onKeyboardAction(KeyboardAction.Show)
             true
         } else if (index > 0) {
             // If current field is empty, delete previous field
@@ -559,6 +599,7 @@ private fun handleKeyEvent(
             }
             onPinChange(newPin)
             onFocusRequest(index - 1)
+            onKeyboardAction(KeyboardAction.Show)
             true
         } else {
             false
