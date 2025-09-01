@@ -311,7 +311,6 @@ private fun PinFields(
     })
 
     // Stable wrapper lambdas whose identities don't change across recompositions
-    val onFocusRequestStable = remember { { i: Int -> onFocusRequestState.value(i) } }
     val onValueChangeStable = remember { { idx: Int, newVal: String -> onValueChangeState.value(idx, newVal) } }
     val onKeyEventStable = remember { { idx: Int, ch: Char?, event: androidx.compose.ui.input.key.KeyEvent -> onKeyEventState.value(idx, ch, event) } }
     val onContainerClickStable = remember { { onContainerClickState.value() } }
@@ -329,7 +328,6 @@ private fun PinFields(
                 isFocusable = focusFlags[index].value,
                 isError = isError,
                 style = style,
-                onFocusRequest = onFocusRequestStable,
                 onValueChange = onValueChangeStable,
                 onKeyEvent = onKeyEventStable,
                 onContainerClick = onContainerClickStable
@@ -350,7 +348,6 @@ private fun PinInputField(
     isFocusable: Boolean,
     isError: Boolean,
     style: PinFieldStyle,
-    onFocusRequest: (Int) -> Unit,
     onValueChange: (Int, String) -> Unit,
     onKeyEvent: (Int, Char?, androidx.compose.ui.input.key.KeyEvent) -> Boolean,
     onContainerClick: () -> Unit,
