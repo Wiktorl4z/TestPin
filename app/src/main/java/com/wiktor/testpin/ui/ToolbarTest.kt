@@ -3,74 +3,67 @@ fun GomToolbar(
     title: String,
     leftmostClickableItem: GomScaffoldTopBarItem?,
     rightmostClickableItems: List<GomScaffoldTopBarItem> = emptyList(),
-    isToolbarDividerEnabled: Boolean = true,
-    iconSize: Dp = 24.dp,
-    sideContainerWidthIfPresent: Dp = 56.dp, // przestrzeń rezerwowana gdy są ikony
-    sideContainerWidthIfAbsent: Dp = 16.dp,  // minimalny gap gdy brakuje ikon
-    appBarHeight: Dp = 56.dp,
-    titleVerticalOffset: Dp = 1.dp // optyczne przesunięcie w dół
+    isToolbarDividerEnabled: Boolean = true
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Box(
+    val sectionWidth = 48.dp // stała przestrzeń jak w Material AppBar
+
+    Column {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(appBarHeight)
-                .background(GomTheme.colors.panel)
+                .height(56.dp)
+                .background(GomTheme.colors.panel),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // LEFT container - ma stałą minimalną szerokość (zapobiega przesuwaniu/ściskaniu)
-            val leftWidth = if (leftmostClickableItem != null) sideContainerWidthIfPresent else sideContainerWidthIfAbsent
+
+            // LEFT SECTION — stała szerokość, ikonka się nie zmniejszy
             Box(
                 modifier = Modifier
-                    .width(leftWidth)
-                    .fillMaxHeight()
-                    .align(Alignment.CenterStart),
-                contentAlignment = Alignment.CenterStart
+                    .width(sectionWidth)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center
             ) {
                 leftmostClickableItem?.draw(
-                    modifier = Modifier
-                        .padding(start = GomTheme.spacings.base)
-                        .size(iconSize)
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
-            // RIGHT container - stała minimalna szerokość, ikony nie będą się ściskać
-            val rightWidth = if (rightmostClickableItems.isNotEmpty()) sideContainerWidthIfPresent else sideContainerWidthIfAbsent
+            // CENTER SECTION — tekst zawsze w centrum całego TopAppBar
             Box(
                 modifier = Modifier
-                    .width(rightWidth)
-                    .fillMaxHeight()
-                    .align(Alignment.CenterEnd),
-                contentAlignment = Alignment.CenterEnd
+                    .weight(1f)                    // <-- czysta magia centrowania
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = title,
+                    style = GomTheme.typography.headingH3,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.offset(y = 1.dp) // optyczne wyśrodkowanie pionowe
+                )
+            }
+
+            // RIGHT SECTION — stała szerokość, ikony się nie zmniejszą
+            Box(
+                modifier = Modifier
+                    .width(sectionWidth)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier.padding(end = GomTheme.spacings.base)
+                    horizontalArrangement = Arrangement.End
                 ) {
                     rightmostClickableItems.forEach { item ->
-                        // każda ikona ma stały rozmiar; padding między ikonami jest również stały
                         item.draw(
                             modifier = Modifier
-                                .size(iconSize)
-                                .padding(start = GomTheme.spacings.base)
+                                .size(24.dp)
+                                .padding(start = 8.dp)
                         )
                     }
                 }
             }
-
-            // TITLE - matematycznie wycentrowany w całym pasku,
-            // jednocześnie ograniczony przez obecność stałych lewych/prawych kontenerów
-            Text(
-                text = title,
-                style = GomTheme.typography.headingH3,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .fillMaxWidth() // zajmuje całą szerokość, by center odnosiło się do całego paska
-                    .wrapContentWidth(Alignment.CenterHorizontally) // centrowanie wewnątrz tej szer.
-                    .offset(y = titleVerticalOffset) // optyczne wycentrowanie pionowe
-                    .align(Alignment.Center)
-            )
         }
 
         if (isToolbarDividerEnabled) {
