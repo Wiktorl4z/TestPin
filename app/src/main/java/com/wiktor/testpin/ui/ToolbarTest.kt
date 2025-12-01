@@ -12,47 +12,53 @@ fun GomToolbar(
         contentPadding = PaddingValues(0.dp)
     ) {
         Column {
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(GomTheme.colors.panel)
-                    .padding(horizontal = 0.dp),
+                    .background(GomTheme.colors.panel),
                 verticalAlignment = Alignment.CenterVertically
             ) {
 
                 // ---- LEFT AREA ----
-                if (leftmostClickableItem != null) {
-                    Box(
-                        modifier = Modifier
-                            .width(24.dp + GomTheme.spacings.base + 8.dp)
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        leftmostClickableItem.draw(
-                            modifier = Modifier
-                                .padding(start = GomTheme.spacings.base)
-                                .size(24.dp)
-                        )
-                    }
+                val leftWidth = if (leftmostClickableItem != null) {
+                    24.dp + GomTheme.spacings.base + 8.dp
                 } else {
-                    // brak ikony -> zostawiamy minimalny padding 8dp
-                    Spacer(Modifier.width(8.dp))
+                    8.dp // minimalny odstęp gdy brak ikony
+                }
+
+                Box(
+                    modifier = Modifier
+                        .width(leftWidth),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    leftmostClickableItem?.draw(
+                        modifier = Modifier
+                            .padding(start = GomTheme.spacings.base)
+                            .size(24.dp)
+                    )
                 }
 
 
-                // ---- CENTER TEXT ----
-                Text(
-                    text = title,
-                    style = GomTheme.typography.headingH3,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                // ---- CENTER AREA (CENTERED TITLE) ----
+                Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 0.dp, end = 8.dp)
-                )
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = title,
+                        style = GomTheme.typography.headingH3,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp) // safety padding
+                            .wrapContentWidth()         // 👈 kluczowe: NIE fillMaxWidth
+                    )
+                }
 
 
-                // ---- RIGHT ICONS ----
+                // ---- RIGHT AREA ----
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(end = GomTheme.spacings.base)
