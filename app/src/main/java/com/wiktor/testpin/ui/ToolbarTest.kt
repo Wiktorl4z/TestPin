@@ -5,7 +5,8 @@ fun GomToolbar(
     rightmostClickableItems: List<GomScaffoldTopBarItem> = emptyList(),
     isToolbarDividerEnabled: Boolean = true
 ) {
-    val sectionWidth = 48.dp // stała przestrzeń jak w Material AppBar
+    // Standardowa szerokość miejsca na jedną ikonę
+    val leftSectionWidth = 56.dp
 
     Column {
         Row(
@@ -16,22 +17,28 @@ fun GomToolbar(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            // LEFT SECTION — stała szerokość, ikonka się nie zmniejszy
+            // --------------------------
+            //       LEFT SECTION
+            // --------------------------
             Box(
                 modifier = Modifier
-                    .width(sectionWidth)
+                    .width(leftSectionWidth)
                     .fillMaxHeight(),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.CenterStart
             ) {
                 leftmostClickableItem?.draw(
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier
+                        .padding(start = GomTheme.spacings.base)
+                        .size(24.dp)
                 )
             }
 
-            // CENTER SECTION — tekst zawsze w centrum całego TopAppBar
+            // --------------------------
+            //       CENTER SECTION
+            // --------------------------
             Box(
                 modifier = Modifier
-                    .weight(1f)                    // <-- czysta magia centrowania
+                    .weight(1f)
                     .fillMaxHeight(),
                 contentAlignment = Alignment.Center
             ) {
@@ -40,28 +47,27 @@ fun GomToolbar(
                     style = GomTheme.typography.headingH3,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.offset(y = 1.dp) // optyczne wyśrodkowanie pionowe
+                    modifier = Modifier.offset(y = 1.dp)
                 )
             }
 
-            // RIGHT SECTION — stała szerokość, ikony się nie zmniejszą
-            Box(
+            // --------------------------
+            //       RIGHT SECTION
+            // --------------------------
+            Row(
                 modifier = Modifier
-                    .width(sectionWidth)
-                    .fillMaxHeight(),
-                contentAlignment = Alignment.Center
+                    .wrapContentWidth()
+                    .fillMaxHeight()
+                    .padding(end = GomTheme.spacings.base),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    rightmostClickableItems.forEach { item ->
-                        item.draw(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .padding(start = 8.dp)
-                        )
-                    }
+                rightmostClickableItems.forEach { item ->
+                    item.draw(
+                        modifier = Modifier
+                            .padding(start = GomTheme.spacings.base)
+                            .size(24.dp)
+                    )
                 }
             }
         }
