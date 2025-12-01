@@ -4,60 +4,71 @@ fun GomToolbar(
     leftmostClickableItem: GomScaffoldTopBarItem?,
     rightmostClickableItems: List<GomScaffoldTopBarItem> = emptyList(),
     isToolbarDividerEnabled: Boolean = true,
+    iconSize: Dp = 24.dp,
+    sideContainerWidthIfPresent: Dp = 56.dp, // przestrzeń rezerwowana gdy są ikony
+    sideContainerWidthIfAbsent: Dp = 16.dp,  // minimalny gap gdy brakuje ikon
+    appBarHeight: Dp = 56.dp,
+    titleVerticalOffset: Dp = 1.dp // optyczne przesunięcie w dół
 ) {
-    val sidePadding = if (leftmostClickableItem != null || rightmostClickableItems.isNotEmpty()) {
-        56.dp        // przestrzeń materialowa dla ikon (ikonka + minimalny margines)
-    } else {
-        16.dp        // standardowy padding gdy ikon brak
-    }
-
-    Column {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(appBarHeight)
+                .background(GomTheme.colors.panel)
         ) {
-
-            // LEFT ICON
-            leftmostClickableItem?.let {
-                Box(
+            // LEFT container - ma stałą minimalną szerokość (zapobiega przesuwaniu/ściskaniu)
+            val leftWidth = if (leftmostClickableItem != null) sideContainerWidthIfPresent else sideContainerWidthIfAbsent
+            Box(
+                modifier = Modifier
+                    .width(leftWidth)
+                    .fillMaxHeight()
+                    .align(Alignment.CenterStart),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                leftmostClickableItem?.draw(
                     modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .padding(start = 16.dp)
-                ) {
-                    it.draw(modifier = Modifier.size(24.dp))
-                }
+                        .padding(start = GomTheme.spacings.base)
+                        .size(iconSize)
+                )
             }
 
-            // RIGHT ICONS
-            if (rightmostClickableItems.isNotEmpty()) {
+            // RIGHT container - stała minimalna szerokość, ikony nie będą się ściskać
+            val rightWidth = if (rightmostClickableItems.isNotEmpty()) sideContainerWidthIfPresent else sideContainerWidthIfAbsent
+            Box(
+                modifier = Modifier
+                    .width(rightWidth)
+                    .fillMaxHeight()
+                    .align(Alignment.CenterEnd),
+                contentAlignment = Alignment.CenterEnd
+            ) {
                 Row(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .padding(end = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.padding(end = GomTheme.spacings.base)
                 ) {
                     rightmostClickableItems.forEach { item ->
+                        // każda ikona ma stały rozmiar; padding między ikonami jest również stały
                         item.draw(
                             modifier = Modifier
-                                .size(24.dp)
-                                .padding(start = 16.dp)
+                                .size(iconSize)
+                                .padding(start = GomTheme.spacings.base)
                         )
                     }
                 }
             }
 
-            // TITLE
+            // TITLE - matematycznie wycentrowany w całym pasku,
+            // jednocześnie ograniczony przez obecność stałych lewych/prawych kontenerów
             Text(
                 text = title,
                 style = GomTheme.typography.headingH3,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = sidePadding)   // klucz!
-                    .wrapContentWidth(Alignment.CenterStart)
-                    .offset(y = 1.dp) // optyczne wycentrowanie pionowe
+                    .fillMaxWidth() // zajmuje całą szerokość, by center odnosiło się do całego paska
+                    .wrapContentWidth(Alignment.CenterHorizontally) // centrowanie wewnątrz tej szer.
+                    .offset(y = titleVerticalOffset) // optyczne wycentrowanie pionowe
                     .align(Alignment.Center)
             )
         }
